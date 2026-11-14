@@ -50,6 +50,27 @@ function bareHost(host: string): string {
   return host.replace(/:\d+$/, '')
 }
 
+/**
+ * MAHABARATA: hosts the office is served from over HTTPS (behind a TLS reverse
+ * proxy such as Nginx). Only entries written WITH `https://` in ALLOWED_ORIGINS
+ * count, so an operator opts in per host. Without this, every write from a browser
+ * on `https://office.example.com` was refused, because the browser's Origin is
+ * https while the app itself only ever sees plain http from the proxy.
+ */
+function httpsHosts(): string[] {
+  return (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.startsWith('https://'))
+    .map((s) => s.replace(/^https:\/\//, '').replace(/\/+$/, ''))
+    .filter(Boolean)
+}
+
+function httpsAllowed(host: string): boolean {
+  const bare = bareHost(host)
+  return httpsHosts().some((entry) => entry === host || entry === bare)
+}
+
 function trustedHost(host: string): boolean {
   if (LOOPBACK.has(bareHost(host))) return true
   const bare = bareHost(host)
@@ -64,8 +85,13 @@ export function localOriginAllowed(hostHeader: string | null, originHeader: stri
     const origin = new URL(originHeader)
     // 1. same-origin: the Origin names the host being requested
     if (origin.host !== host.host) return false
-    // the office is served over plain http; an https origin is a different origin
-    if (origin.protocol !== 'http:') return false
+    // the office is served over plain http; an https origin is a different origin —
+    // UNLESS the operator listed this host as `https://<host>` (TLS reverse proxy).
+    if (origin.protocol === 'https:') {
+      if (!httpsAllowed(host.host)) return false
+    } else if (origin.protocol !== 'http:') {
+      return false
+    }
     // 2. and that host is one we trust
     return trustedHost(host.host)
   } catch {

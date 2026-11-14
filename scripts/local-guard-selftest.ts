@@ -21,7 +21,7 @@ const check = (label: string, got: boolean, want: boolean) => {
 // `ALLOWED_ORIGINS` is read at call time, so the public-IP cases only pass when it
 // is configured. The test asserts the CONFIGURED behaviour, because an unconfigured
 // deploy is exactly the broken state we are guarding against.
-process.env.ALLOWED_ORIGINS = '203.0.113.10:3300,office.example.com'
+process.env.ALLOWED_ORIGINS = '203.0.113.10:3300,office.example.com,https://secure.example.com'
 
 console.log('=== HARUS DITERIMA (kalau tidak, tombol mati) ===')
 const valid: [string, string][] = [
@@ -35,6 +35,8 @@ const valid: [string, string][] = [
   // a named host from the list, with and without a port
   ['office.example.com:3300', 'http://office.example.com:3300'],
   ['office.example.com', 'http://office.example.com'],
+  // MAHABARATA: a host listed as https:// behind a TLS reverse proxy
+  ['secure.example.com', 'https://secure.example.com'],
 ]
 for (const [host, origin] of valid) {
   check(`${origin}`, localOriginAllowed(host, origin), true)
@@ -51,6 +53,10 @@ const invalid: [string | null, string | null][] = [
   // scheme mismatch
   ['localhost:3000', 'https://localhost:3000'],
   ['203.0.113.10:3300', 'https://203.0.113.10:3300'],
+  // https only for hosts listed WITH https:// — a plain entry does not unlock it
+  ['office.example.com', 'https://office.example.com'],
+  // an https-listed host still needs a matching Origin
+  ['secure.example.com', 'https://evil.test'],
   // missing headers (curl, a cross-site form post, a server-to-server call)
   ['localhost:3000', null],
   [null, 'http://localhost:3000'],
