@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useOffice } from '@/lib/store'
 import { fetchJson } from '@/lib/api'
 
@@ -17,6 +17,15 @@ export default function NewTaskDialog() {
   const [priority, setPriority] = useState(0)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
+  // MAHABARATA: klien opsional — tugas dicatat per klien dan diberi penunjuk ke profilnya.
+  const [client, setClient] = useState('')
+  const [clients, setClients] = useState<{ slug: string; name: string }[]>([])
+  useEffect(() => {
+    if (!open) return
+    fetchJson<{ clients: { slug: string; name: string }[] }>('/api/hermes/clients').then((r) => {
+      if (r.ok && r.data) setClients(r.data.clients)
+    })
+  }, [open])
 
   if (!open) return null
 
@@ -32,6 +41,7 @@ export default function NewTaskDialog() {
           assignee: assignee || agents[0]?.name,
           body,
           priority,
+          client: client || undefined,
         }),
       })
       if (!res.ok || !res.data) throw new Error(res.error || 'gagal membuat tugas')
@@ -71,6 +81,14 @@ export default function NewTaskDialog() {
           >
             {agents.map((a) => (
               <option key={a.name} value={a.name}>{a.displayName}</option>
+            ))}
+          </select>
+
+          <label className="vp-sub">KLIEN (OPSIONAL)</label>
+          <select className="vp-input" value={client} onChange={(e) => setClient(e.target.value)}>
+            <option value="">— tanpa klien —</option>
+            {clients.map((c) => (
+              <option key={c.slug} value={c.slug}>{c.name}</option>
             ))}
           </select>
 

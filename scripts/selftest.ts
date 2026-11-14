@@ -6118,6 +6118,52 @@ void (async () => {
     check('mahabarata-vps: ambang jujur (tak terbaca bukan sehat) + backup terbaru + route', problems.length === 0, problems.join(' | '))
   }
 
+  /* ------------------------------------------------- MAHABARATA klien -- */
+  {
+    const problems: string[] = []
+    const c = await import('../src/lib/ops/clients')
+    const dir = mkdtempSync(join(tmpdir(), 'klien-'))
+    try {
+      // Profil lama buatan tangan (usaha-hanger) tetap terbaca.
+      writeFileSync(join(dir, 'usaha-hanger.md'), '# Profil Klien: Usaha Hanger (milik pemilik MAHABARATA)\n- Nama: [BELUM DIISI]\n- Testimoni: [BELUM ADA — x]\n')
+      const made = c.createClient({ slug: 'toko-batik', name: 'Toko Batik', business: 'Reseller batik' }, dir)
+      if (made.name !== 'Toko Batik') problems.push(`nama klien: ${made.name}`)
+      const md = readFileSync(made.path, 'utf8')
+      if (!md.includes('Reseller batik')) problems.push('isian pemilik hilang')
+      if (!md.includes('[BELUM DIISI]')) problems.push('kolom kosong tidak ditandai [BELUM DIISI]')
+      // Ditolak: duplikat, id aneh (termasuk upaya keluar folder), nama kosong.
+      for (const bad of [
+        { slug: 'toko-batik', name: 'X' },
+        { slug: '../etc', name: 'X' },
+        { slug: 'A B', name: 'X' },
+        { slug: 'ok-id', name: '  ' },
+      ]) {
+        try {
+          c.createClient(bad, dir)
+          problems.push(`klien tak sah diterima: ${JSON.stringify(bad)}`)
+        } catch {
+          // diharapkan
+        }
+      }
+      const list = c.listClients(dir)
+      if (list.map((x) => x.slug).join(',') !== 'toko-batik,usaha-hanger') problems.push(`daftar: ${list.map((x) => x.slug)}`)
+      const hanger = list.find((x) => x.slug === 'usaha-hanger')
+      if (!hanger || hanger.name !== 'Usaha Hanger (milik pemilik MAHABARATA)' || hanger.missing !== 2) problems.push(`profil lama: ${JSON.stringify(hanger)}`)
+      if (c.readClient('../../etc/passwd', dir) !== null) problems.push('readClient menerima path keluar folder')
+      const brief = c.clientBrief(made)
+      if (!brief.includes(made.path) || brief.includes('usaha-hanger')) problems.push('brief tugas menyebut klien lain / tanpa path')
+    } catch (e) {
+      problems.push(`THREW: ${(e as Error).message}`)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+    const kan = readFileSync(join(process.cwd(), 'src/lib/hermes/kanban.ts'), 'utf8')
+    if (!/args\.push\('--tenant', input\.tenant\)/.test(kan)) problems.push('createTask tidak meneruskan --tenant')
+    const tr = readFileSync(join(process.cwd(), 'src/app/api/hermes/tasks/route.ts'), 'utf8')
+    if (!/klien .* tidak ada/.test(tr)) problems.push('route tugas tidak menolak klien yang tidak ada')
+    check('mahabarata-klien: profil jujur [BELUM DIISI] + tolak id/duplikat/path + tenant di tugas', problems.length === 0, problems.join(' | '))
+  }
+
   /* ------------------------------------------------------------- result -- */
   console.log(`\n${checks - failures}/${checks} checks passed\n`)
   if (failures) {

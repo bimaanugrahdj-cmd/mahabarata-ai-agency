@@ -224,4 +224,6 @@ export type NewTaskInput = {
   priority?: number
   /** Where this task came from; written to `created_by` as a marker. */
   origin?: TaskOrigin
+  /** MAHABARATA: klien (slug) — dicatat sebagai tenant di papan kerja Hermes. */
+  tenant?: string
 }

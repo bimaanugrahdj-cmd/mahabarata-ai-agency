@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { clientBrief, listClients } from '@/lib/ops/clients'
 import { createTask, listAgents, listAssignees, listTasks } from '@/lib/hermes/kanban'
 import { visible } from '@/lib/hermes/office-membership'
 import { blockedAssigneesFor } from '@/lib/hermes/approvals'
@@ -75,13 +76,24 @@ export async function POST(req: NextRequest) {
   if (!assignee) return bad('assignee wajib')
 
   const b = body as Record<string, unknown>
+  // MAHABARATA: klien opsional. Harus klien yang benar-benar ada; isi tugas diberi
+  // penunjuk ke profil klien INI saja, dan tugas dicatat dengan tenant = id klien.
+  let tenant: string | undefined
+  let taskBody = typeof b.body === 'string' ? b.body : undefined
+  if (typeof b.client === 'string' && b.client.trim()) {
+    const client = listClients().find((c) => c.slug === (b.client as string).trim())
+    if (!client) return bad(`klien "${b.client}" tidak ada`)
+    tenant = client.slug
+    taskBody = (taskBody || '') + clientBrief(client)
+  }
   try {
     const task = await createTask({
       title: title.slice(0, 300),
       assignee,
-      body: typeof b.body === 'string' ? b.body : undefined,
+      body: taskBody,
       priority: Number.isFinite(Number(b.priority)) ? Number(b.priority) : undefined,
       origin,
+      tenant,
     })
     return NextResponse.json({ success: true, task }, { status: 201 })
   } catch (err) {

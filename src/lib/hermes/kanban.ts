@@ -239,6 +239,8 @@ export async function createTask(input: NewTaskInput): Promise<Task> {
   const args = ['create', input.title, '--assignee', input.assignee]
   if (input.body) args.push('--body', input.body)
   if (typeof input.priority === 'number') args.push('--priority', String(input.priority))
+  // MAHABARATA: tugas milik klien dipisahkan per tenant di papan kerja.
+  if (input.tenant) args.push('--tenant', input.tenant)
   // The origin marker rides on `created_by`, which the CLI accepts as free text.
   // Verified: `create --created-by meeting:m_test123` stores it verbatim and it
   // comes back on `list --json`, so no schema change is needed for the link.
