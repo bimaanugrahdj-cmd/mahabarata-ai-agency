@@ -19,7 +19,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
 
-import { buildOffice, type OfficeProps } from './build'
+import { buildOffice, officeNameTexture, type OfficeProps } from './build'
 import type { Health } from './health'
 import { buildAvatar } from './avatar'
 import { animate, type Activity, type AnimAgent } from './anim'
@@ -1361,6 +1361,20 @@ export function createScene(
      */
     setHealth(level: Health['level']) {
       office.setHealth(level)
+    },
+    /**
+     * MAHABARATA: papan nama di atas pintu mengikuti nama kantor yang tersimpan.
+     * Sebelumnya teksnya tertanam ("HERMES OFFICE") dan tidak pernah ikut berubah
+     * walaupun nama kantor diganti dari UI.
+     */
+    setOfficeName(name: string) {
+      const face = scene.getObjectByName('office-name-face') as THREE.Mesh | undefined
+      if (!face) return
+      const mat = face.material as THREE.MeshStandardMaterial
+      const old = mat.map
+      mat.map = officeNameTexture(name)
+      mat.needsUpdate = true
+      old?.dispose()
     },
     start,
     stop,

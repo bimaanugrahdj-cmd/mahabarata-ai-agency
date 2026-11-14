@@ -27,6 +27,7 @@ export default function Scene3D({ onScene, onDummy, onBoard, onName }: Props) {
   const view = useOffice((s) => s.view)
   const health = useOffice((s) => s.health)
   const work = useOffice((s) => s.work)
+  const officeName = useOffice((s) => s.officeName)
   const setPeek = useOffice((s) => s.setPeek)
   const select = useOffice((s) => s.select)
   const openTask = useOffice((s) => s.openTask)
@@ -77,6 +78,11 @@ export default function Scene3D({ onScene, onDummy, onBoard, onName }: Props) {
   useEffect(() => {
     sceneRef.current?.syncAvatars(avatars, agents)
   }, [avatars, agents])
+
+  // Papan nama di atas pintu masuk mengikuti nama kantor (MAHABARATA).
+  useEffect(() => {
+    sceneRef.current?.setOfficeName(officeName)
+  }, [officeName])
 
   useEffect(() => {
     sceneRef.current?.setTasks(tasks)

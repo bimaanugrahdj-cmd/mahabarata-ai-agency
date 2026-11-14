@@ -286,6 +286,14 @@ function grassTexture(base: string, blade: string) {
   })
 }
 
+/**
+ * Papan nama kantor di atas pintu masuk. Diekspor supaya scene bisa menggantinya
+ * saat nama kantor berubah (nama disimpan di DB dan bisa diedit dari UI).
+ */
+export function officeNameTexture(name: string) {
+  return signTexture((name.trim() || 'MAHABARATA VIRTUAL OFFICE').toUpperCase())
+}
+
 /** A readable room-name plate: dark panel, gold serif text. */
 function signTexture(text: string, sub?: string) {
   const cv = document.createElement('canvas')
@@ -2542,7 +2550,7 @@ export function buildOffice(scene: THREE.Scene, hour: number) {
     namePlate.position.set(DOOR.x, 3.5, HALF_D + 0.08)
     namePlate.name = 'office-name-plate'
     group.add(namePlate)
-    const nameMat = new THREE.MeshStandardMaterial({ map: signTexture('HERMES OFFICE'), roughness: 0.55 })
+    const nameMat = new THREE.MeshStandardMaterial({ map: signTexture('MAHABARATA VIRTUAL OFFICE'), roughness: 0.55 })
     const nameFace = new THREE.Mesh(new THREE.PlaneGeometry(6.0, 0.8), nameMat)
     nameFace.position.set(DOOR.x, 3.5, HALF_D + 0.15)
     nameFace.name = 'office-name-face'
