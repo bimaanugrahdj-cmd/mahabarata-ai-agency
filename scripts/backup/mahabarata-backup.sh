@@ -28,38 +28,51 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$DEST"
 
-# Salin satu folder ke staging, tanpa kode/log/cache/file SQLite (SQLite ditangani terpisah).
+# Salin satu folder ke staging, tanpa kode/log/cache. Dikerjakan Python, bukan tar:
+# gateway Hermes terus menulis di ~/.hermes, dan tar menganggap "file berubah saat
+# dibaca" sebagai galat sehingga seluruh backup gagal. Di sini file yang berubah,
+# hilang di tengah jalan, atau tak terbaca DILEWATI dan DILAPORKAN, bukan menggagalkan
+# semuanya. Database SQLite disalin lewat API backup SQLite (konsisten).
 copy_tree() {
   local src="$1" name="$2"
   [ -d "$src" ] || { echo "  lewati (tidak ada): $src"; return 0; }
-  mkdir -p "$STAGE/$name"
-  tar -C "$src" \
-    --exclude='./hermes-agent' --exclude='node_modules' --exclude='./logs' --exclude='*/logs' \
-    --exclude='./kanban/workspaces' --exclude='__pycache__' --exclude='./cache' --exclude='*/cache' \
-    --exclude='*.db' --exclude='*.db-wal' --exclude='*.db-shm' --exclude='*.db-journal' \
-    -cf - . | tar -C "$STAGE/$name" -xf -
-  # Database SQLite: salinan konsisten lewat API backup.
   python3 - "$src" "$STAGE/$name" <<'PY'
-import os, sqlite3, sys
+import os, shutil, sqlite3, stat, sys
 src, dst = sys.argv[1], sys.argv[2]
-n = 0
-for root, dirs, files in os.walk(src):
-    dirs[:] = [d for d in dirs if d not in ("hermes-agent", "node_modules", "logs", "workspaces", "__pycache__", "cache")]
-    for f in files:
-        if not f.endswith(".db"):
-            continue
+SKIP_DIRS = {"hermes-agent", "node_modules", "logs", "workspaces", "__pycache__", "cache", ".git"}
+SKIP_SUFFIX = ("-wal", "-shm", "-journal")
+files = dbs = 0
+warn = []
+for root, dirs, names in os.walk(src):
+    dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+    for f in names:
         s = os.path.join(root, f)
         d = os.path.join(dst, os.path.relpath(s, src))
-        os.makedirs(os.path.dirname(d), exist_ok=True)
+        if f.endswith(SKIP_SUFFIX):
+            continue
         try:
-            a = sqlite3.connect(f"file:{s}?mode=ro", uri=True)
-            b = sqlite3.connect(d)
-            a.backup(b)
-            b.close(); a.close()
-            n += 1
-        except sqlite3.Error as e:
-            print(f"  PERINGATAN: gagal mencadangkan {s}: {e}")
-print(f"  {n} database SQLite dari {src}")
+            st = os.lstat(s)
+            if not stat.S_ISREG(st.st_mode):
+                continue  # soket, pipa, symlink: bukan data
+            os.makedirs(os.path.dirname(d), exist_ok=True)
+            if f.endswith(".db"):
+                a = sqlite3.connect(f"file:{s}?mode=ro", uri=True)
+                b = sqlite3.connect(d)
+                a.backup(b)
+                b.close(); a.close()
+                dbs += 1
+            else:
+                shutil.copy2(s, d)
+                files += 1
+        except FileNotFoundError:
+            pass  # hilang di tengah jalan (file sementara): wajar
+        except (OSError, sqlite3.Error) as e:
+            warn.append(f"{s}: {e}")
+print(f"  {src}: {files} file, {dbs} database SQLite")
+for w in warn[:10]:
+    print(f"  PERINGATAN: dilewati {w}")
+if len(warn) > 10:
+    print(f"  PERINGATAN: ... dan {len(warn) - 10} lainnya")
 PY
 }
 
