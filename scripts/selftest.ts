@@ -6023,6 +6023,51 @@ void (async () => {
     check('a2a-call-1: kunci-hilang=FAIL + peer resolvable + URL-penuh di prompt + kabel serve/spawn/kill + peer-profil', problems.length === 0, problems.join(' | '))
   }
 
+  /* ------------------------------------------------- MAHABARATA rebrand -- */
+  {
+    const problems: string[] = []
+    // Label kursi kosong jujur + migrasi DB lama, di DB tmp (bukan DB asli).
+    const dbPath = join(tmpdir(), `office-rebrand-${process.pid}.db`)
+    process.env.OFFICE_DB_PATH = dbPath
+    try {
+      const roster = await import('../src/lib/office/dummy-roster')
+      const db = await import('../src/lib/office/db')
+      db._resetOfficeDbForTest()
+      // Semua kursi divisi berlabel "Kursi Kosong", tidak ada lagi "Dev Manager".
+      for (const r of roster.dummyRoster()) {
+        if (r.name === 'Resepsionis') continue
+        if (!r.name.startsWith('Kursi Kosong')) problems.push(`label kursi tidak jujur: ${r.name}`)
+      }
+      // Nama lama & baru sama-sama dikenali self-repair sebagai placeholder.
+      for (const n of ['dev manager', 'kursi kosong · konten 2', 'resepsionis']) {
+        if (!roster.ROSTER_PLACEHOLDER_NAMES.has(n)) problems.push(`placeholder tak dikenali: ${n}`)
+      }
+      // Migrasi: dummy lama berganti nama; agent sungguhan & dummy ter-spawn TIDAK disentuh.
+      db.saveAvatars([
+        { avatarId: 'dummy:tech:0', name: 'Dev Manager', division: 'tech', kind: 'dummy', x: 0, z: 0, level: 0, activity: 'typing', facing: 0, spawned: false, anchored: false },
+        { avatarId: 'dummy:growth:3', name: 'Mkt Staff 1', division: 'growth', kind: 'dummy', x: 1, z: 0, level: 0, activity: 'typing', facing: 0, spawned: true, anchored: false },
+        { avatarId: 'agent:ceo', name: 'Content Manager', division: 'exec', kind: 'agent', x: 2, z: 0, level: 0, activity: 'idle', facing: 0, spawned: true, anchored: false },
+      ])
+      const n1 = db.renameLegacyDummies(roster.LEGACY_DUMMY_RENAMES)
+      const n2 = db.renameLegacyDummies(roster.LEGACY_DUMMY_RENAMES)
+      const rows = new Map(db.listAvatars().map((a) => [a.avatarId, a.name]))
+      if (n1 !== 1) problems.push(`migrasi mengubah ${n1} baris, harus 1`)
+      if (n2 !== 0) problems.push(`migrasi tidak idempoten (${n2} baris pada putaran kedua)`)
+      if (rows.get('dummy:tech:0') !== 'Kursi Kosong · Kreatif 1') problems.push(`dummy lama tak diganti: ${rows.get('dummy:tech:0')}`)
+      if (rows.get('dummy:growth:3') !== 'Mkt Staff 1') problems.push('dummy ter-spawn ikut diganti')
+      if (rows.get('agent:ceo') !== 'Content Manager') problems.push('agent sungguhan ikut diganti')
+      if (db.DEFAULT_OFFICE_NAME !== 'MAHABARATA VIRTUAL OFFICE') problems.push(`nama kantor bawaan: ${db.DEFAULT_OFFICE_NAME}`)
+    } catch (e) {
+      problems.push(`THREW: ${(e as Error).message}`)
+    } finally {
+      const { _resetOfficeDbForTest } = await import('../src/lib/office/db')
+      _resetOfficeDbForTest()
+      delete process.env.OFFICE_DB_PATH
+      for (const suffix of ['', '-wal', '-shm']) rmSync(dbPath + suffix, { force: true })
+    }
+    check('mahabarata-rebrand: kursi kosong berlabel jujur + migrasi label lama aman & idempoten', problems.length === 0, problems.join(' | '))
+  }
+
   /* ------------------------------------------------------------- result -- */
   console.log(`\n${checks - failures}/${checks} checks passed\n`)
   if (failures) {

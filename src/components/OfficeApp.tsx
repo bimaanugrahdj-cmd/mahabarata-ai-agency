@@ -33,6 +33,7 @@ const Scene3D = dynamic(() => import('./Scene3D'), {
 
 export default function OfficeApp() {
   const view = useOffice((s) => s.view)
+  const officeName = useOffice((s) => s.officeName)
   const setView = useOffice((s) => s.setView)
   const setNewTaskOpen = useOffice((s) => s.setNewTaskOpen)
   const tasks = useOffice((s) => s.tasks)
@@ -134,7 +135,7 @@ export default function OfficeApp() {
       {/* ------------------------------------------------------- top bar */}
       <header ref={barRef} className="vp-topbar">
         <div className="vp-topbar-brand flex items-center gap-3">
-          <span className="vp-logo">Hermes Office</span>
+          <span className="vp-logo">{officeName}</span>
           <span className={`vp-dot ${backendOnline ? 'ok' : 'bad'}`} />
           <span className="vp-muted vp-topbar-status">
             {backendOnline ? `${agents.length} agent · ${running} jalan · ${pct}% rilis` : 'backend offline'}

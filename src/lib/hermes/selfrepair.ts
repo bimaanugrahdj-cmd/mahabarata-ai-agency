@@ -15,6 +15,7 @@
 
 import { readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
+import { ROSTER_PLACEHOLDER_NAMES } from '@/lib/office/dummy-roster'
 import {
   classifyProviderScope,
 } from './doctor'
@@ -123,24 +124,7 @@ export function isRosterSlotId(avatarId: string): boolean {
   return /^dummy:(tech|growth|content|exec):\d+$/.test(id)
 }
 
-/** Nama placeholder roster (kursi kosong, bukan agent): Dev Manager, dst. */
-const ROSTER_PLACEHOLDER_NAMES = new Set(
-  [
-    'dev manager',
-    'dev staff 1',
-    'dev staff 2',
-    'mkt manager',
-    'mkt staff 1',
-    'mkt staff 2',
-    'content manager',
-    'content staff 1',
-    'content staff 2',
-    'exec manager',
-    'exec staff 1',
-    'exec staff 2',
-    'resepsionis',
-  ],
-)
+/* Nama placeholder roster: lihat ROSTER_PLACEHOLDER_NAMES di office/dummy-roster.ts. */
 
 /**
  * Kursi kosong yang hidup: id pola roster + nama placeholder + dummy + belum

@@ -5,10 +5,11 @@ import {
   listAvatars,
   saveAvatars,
   seedAvatars,
+  renameLegacyDummies,
   setOfficeName,
   type AvatarWrite,
 } from '@/lib/office/db'
-import { dummyRoster } from '@/lib/office/dummy-roster'
+import { dummyRoster, LEGACY_DUMMY_RENAMES } from '@/lib/office/dummy-roster'
 import { assertLocalWriteRequest } from '@/lib/local-guard'
 import type { AgentDivision } from '@/types/hermes'
 
@@ -27,6 +28,8 @@ export async function GET() {
     // First run: populate the dummy roster so the building is not empty. Idempotent
     // — it only fires when the table has no rows at all.
     seedAvatars(dummyRoster())
+    // MAHABARATA: label kursi kosong lama → label baru (idempoten).
+    renameLegacyDummies(LEGACY_DUMMY_RENAMES)
     return NextResponse.json({
       name: getOfficeName(),
       avatars: listAvatars(),

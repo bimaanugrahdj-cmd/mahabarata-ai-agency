@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Hermes Virtual Office',
+  title: 'MAHABARATA Virtual Office',
   description:
-    'An open-source 3D virtual workspace and meeting simulator for autonomous AI agents.',
+    'MAHABARATA AI AGENCY — kantor virtual 3D untuk AI Workforce MAHABARATA.',
 }
 
 /**

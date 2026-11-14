@@ -122,7 +122,7 @@ export const ROOMS: Room[] = [
   },
   {
     id: 'dev',
-    label: 'DEVELOPER & INFRASTRUCTURE',
+    label: 'STUDIO KREATIF',
     level: 0,
     x1: WORK_X1,
     x2: WORK_X2,
@@ -132,7 +132,7 @@ export const ROOMS: Room[] = [
   },
   {
     id: 'mkt',
-    label: 'MARKETING & SEO',
+    label: 'MARKETING',
     level: 0,
     x1: WORK_X1,
     x2: WORK_X2,
@@ -142,7 +142,7 @@ export const ROOMS: Room[] = [
   },
   {
     id: 'content',
-    label: 'CONTENT CREATOR',
+    label: 'KONTEN',
     level: 0,
     x1: WORK_X1,
     x2: WORK_X2,

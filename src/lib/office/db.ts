@@ -92,7 +92,7 @@ const now = () => new Date().toISOString()
 
 /* ------------------------------------------------------------------ meta -- */
 
-export const DEFAULT_OFFICE_NAME = 'Hermes Office'
+export const DEFAULT_OFFICE_NAME = 'MAHABARATA VIRTUAL OFFICE'
 
 /** The office name shown (and editable) in the lobby. */
 export function getOfficeName(): string {
@@ -264,6 +264,27 @@ export type DummySpec = {
   facing: number
   /** Pinned in place forever — the receptionist never leaves the counter. */
   anchored?: boolean
+}
+
+/**
+ * MAHABARATA: ganti label kursi kosong versi lama ("Dev Manager" dkk.) di database
+ * yang sudah ada. Seeding hanya berjalan saat tabel kosong, jadi tanpa ini kantor
+ * yang sudah pernah dibuka akan tetap memakai nama lama selamanya.
+ *
+ * Hanya menyentuh baris yang PASTI kursi kosong: kind='dummy', belum di-spawn, dan
+ * namanya persis nama lama. Agent sungguhan tidak pernah disentuh. Idempoten.
+ */
+export function renameLegacyDummies(renames: ReadonlyMap<string, string>): number {
+  const d = officeDb()
+  const stmt = d.prepare(
+    `UPDATE avatar_state SET name = ?, updated_at = ? WHERE kind = 'dummy' AND spawned = 0 AND name = ?`,
+  )
+  const now = new Date().toISOString()
+  let n = 0
+  for (const [oldName, newName] of renames) {
+    n += Number((stmt.run(newName, now, oldName) as { changes: number | bigint }).changes)
+  }
+  return n
 }
 
 export function seedAvatars(specs: DummySpec[]): number {
