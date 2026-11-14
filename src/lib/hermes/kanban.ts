@@ -115,6 +115,7 @@ type RawTask = {
   completed_at?: number | null
   model_override?: string | null
   provider_override?: string | null
+  tenant?: string | null
 }
 
 /**
@@ -156,6 +157,7 @@ function toTask(r: RawTask): Task {
     origin: parseOrigin(r.created_by),
     model: r.model_override ?? null,
     provider: r.provider_override ?? null,
+    tenant: r.tenant ?? null,
   }
 }
 

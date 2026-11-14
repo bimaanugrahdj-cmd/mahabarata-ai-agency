@@ -6164,6 +6164,48 @@ void (async () => {
     check('mahabarata-klien: profil jujur [BELUM DIISI] + tolak id/duplikat/path + tenant di tugas', problems.length === 0, problems.join(' | '))
   }
 
+  /* ------------------------------------------- MAHABARATA ringkasan/kuota -- */
+  {
+    const problems: string[] = []
+    const q = await import('../src/lib/ops/quota')
+    const r = q.classifyUsage([
+      { model: 'nvidia/nemotron-3-ultra:free', provider: 'openrouter', calls: 12 },
+      { model: 'nvidia/nemotron-3.5-super', provider: 'nvidia', calls: 4 },
+      { model: 'anthropic/claude', provider: 'openrouter', calls: 1 },
+      { model: 'x/y', provider: '', calls: 0 },
+    ])
+    if (r.free !== 12 || r.nvidia !== 4 || r.paid !== 1) problems.push(`classifyUsage: ${JSON.stringify(r)}`)
+    if (r.paidModels.length !== 1 || !r.paidModels[0].includes('openrouter')) problems.push(`paidModels: ${r.paidModels}`)
+    // Kuota dari state.db SEMUA profil, hanya hari UTC ini.
+    const home = mkdtempSync(join(tmpdir(), 'kuota-'))
+    const saved = process.env.HERMES_HOME
+    try {
+      const { DatabaseSync } = await import('node:sqlite')
+      const { mkdirSync } = await import('node:fs')
+      mkdirSync(join(home, 'profiles', 'yadi'), { recursive: true })
+      const now = Date.now()
+      for (const [f, rows] of [
+        [join(home, 'state.db'), [['m:free', 'openrouter', 5, now / 1000 - 10], ['m:free', 'openrouter', 30, now / 1000 - 3 * 86400]]],
+        [join(home, 'profiles', 'yadi', 'state.db'), [['m:free', 'openrouter', 7, now / 1000 - 5]]],
+      ] as [string, [string, string, number, number][]][]) {
+        const db = new DatabaseSync(f)
+        db.exec('CREATE TABLE session_model_usage(model, billing_provider, api_call_count, last_seen)')
+        for (const row of rows) db.prepare('INSERT INTO session_model_usage VALUES (?,?,?,?)').run(...row)
+        db.close()
+      }
+      process.env.HERMES_HOME = home
+      const today = q.readQuotaToday(now)
+      if (today.free !== 12) problems.push(`readQuotaToday.free = ${today.free}, harus 12 (2 profil, tanpa hari lalu)`)
+      if (today.limit !== 50 || today.resetInHours <= 0 || today.resetInHours > 24) problems.push(`limit/reset: ${JSON.stringify(today)}`)
+    } finally {
+      if (saved === undefined) delete process.env.HERMES_HOME
+      else process.env.HERMES_HOME = saved
+      rmSync(home, { recursive: true, force: true })
+    }
+    if (!existsSync(join(process.cwd(), 'src/app/api/hermes/overview/route.ts'))) problems.push('route overview hilang')
+    check('mahabarata-ringkasan: kuota semua profil hari ini + NVIDIA bukan berbayar + route', problems.length === 0, problems.join(' | '))
+  }
+
   /* ------------------------------------------------------------- result -- */
   console.log(`\n${checks - failures}/${checks} checks passed\n`)
   if (failures) {

@@ -11,6 +11,7 @@ import AgentSpawnPanel from './AgentSpawnPanel'
 import CronPanel from './CronPanel'
 import SystemPanel from './SystemPanel'
 import ClientPanel from './ClientPanel'
+import OverviewPanel from './OverviewPanel'
 import BoardPanel from './BoardPanel'
 import ChatPanel from './ChatPanel'
 import NewTaskDialog from './NewTaskDialog'
@@ -53,6 +54,7 @@ export default function OfficeApp() {
   const [cronOpen, setCronOpen] = useState(false)
   const [systemOpen, setSystemOpen] = useState(false)
   const [clientOpen, setClientOpen] = useState(false)
+  const [overviewOpen, setOverviewOpen] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [boardOpen, setBoardOpen] = useState(false)
@@ -145,6 +147,7 @@ export default function OfficeApp() {
         </div>
 
         <nav className="vp-topbar-nav flex items-center gap-2" aria-label="Panel">
+          <button className="vp-btn vp-btn-ghost" onClick={() => setOverviewOpen(true)}>Ringkasan</button>
           <button className="vp-btn vp-btn-ghost" onClick={() => setNewTaskOpen(true)}>+ Tugas</button>
           <button className="vp-btn vp-btn-ghost" onClick={() => setMeetOpen(true)}>
             Ruang rapat{meeting && meeting.state === 'running' ? ' ●' : ''}
@@ -208,6 +211,7 @@ export default function OfficeApp() {
       <BoardPanel open={panelOpen} onClose={() => setPanelOpen(false)} />
       <SystemPanel open={systemOpen} onClose={() => setSystemOpen(false)} />
       <ClientPanel open={clientOpen} onClose={() => setClientOpen(false)} />
+      <OverviewPanel open={overviewOpen} onClose={() => setOverviewOpen(false)} />
       <ChatPanel
         open={chatOpen}
         onClose={() => setChatOpen(false)}

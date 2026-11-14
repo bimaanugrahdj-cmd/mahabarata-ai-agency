@@ -57,6 +57,8 @@ export type Task = {
   model?: string | null
   /** Provider that owns `model`, when one was pinned with it. */
   provider?: string | null
+  /** MAHABARATA: klien (tenant) pemilik tugas, bila ada. */
+  tenant?: string | null
   /**
    * Ids of the tasks this one waits for, from `kanban show`.
    *
