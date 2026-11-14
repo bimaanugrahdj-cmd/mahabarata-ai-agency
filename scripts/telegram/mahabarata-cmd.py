@@ -165,7 +165,7 @@ def cmd_kuota():
     now = time.time()
     day_start = now - (now % 86400)
     dbs = [HH / "state.db"] + sorted((HH / "profiles").glob("*/state.db"))
-    free = paid = 0
+    free = paid = nvidia = 0
     paid_models = set()
     unread = 0
     for db in dbs:
@@ -174,24 +174,29 @@ def cmd_kuota():
         try:
             con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
             rows = con.execute(
-                "SELECT model, COALESCE(SUM(api_call_count),0) FROM session_model_usage "
-                "WHERE COALESCE(last_seen,0) >= ? GROUP BY model", (day_start,)
+                "SELECT model, COALESCE(billing_provider,''), COALESCE(SUM(api_call_count),0) "
+                "FROM session_model_usage WHERE COALESCE(last_seen,0) >= ? GROUP BY model, billing_provider",
+                (day_start,)
             ).fetchall()
             con.close()
         except sqlite3.Error:
             unread += 1
             continue
-        for model, calls in rows:
+        for model, provider, calls in rows:
             if (model or "").endswith(":free"):
                 free += calls
+            elif "nvidia" in (provider or "").lower():
+                nvidia += calls  # cadangan NVIDIA NIM (kunci gratis), bukan model berbayar
             else:
                 paid += calls
                 if calls:
-                    paid_models.add(model)
+                    paid_models.add(f"{model} ({provider or 'penyedia tak tercatat'})")
     reset_in = (day_start + 86400 - now) / 3600
     lines = [f"🔋 Kuota AI hari ini (perkiraan)",
              f"Model gratis: {free} dari 50 request",
              f"Sisa ±{max(0, 50 - free)} · reset dalam {reset_in:.0f} jam (07.00 WIB)"]
+    if nvidia:
+        lines.append(f"Cadangan NVIDIA dipakai: {nvidia} request (batas per menit, bukan per hari)")
     if free >= 45:
         lines.append("⚠️ Hampir habis: tugas baru bisa tertahan sampai reset.")
     if paid:
