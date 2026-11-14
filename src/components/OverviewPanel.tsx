@@ -18,6 +18,7 @@ type Overview = {
   clients: { slug: string; name: string; missing: number; tasks: number | null; open: number | null }[] | null
   quota: { free: number; limit: number; nvidia: number; paid: number; paidModels: string[]; resetInHours: number } | null
   vps: { level: string; backup: { latest: string | null; ageHours: number | null; count: number; level: string }; services: { name: string; state: string }[] } | null
+  ideas: Record<string, number> | null
   errors: string[]
 }
 
@@ -74,6 +75,11 @@ export default function OverviewPanel({ open, onClose }: { open: boolean; onClos
             <Card label="Kuota AI" value={q ? `${qLeft}` : '—'} sub={q ? `sisa dari ${q.limit} · reset ${Math.round(q.resetInHours)} jam` : 'tak terbaca'} tone={qTone} />
             <Card label="Server" value={d.vps ? (d.vps.level === 'ok' ? 'Sehat' : d.vps.level === 'warn' ? 'Waspada' : d.vps.level === 'bad' ? 'Masalah' : '?') : '—'}
               sub={d.vps ? (d.vps.backup.latest ? `backup ${d.vps.backup.ageHours} jam lalu` : 'BELUM ADA backup') : 'tak terbaca'} tone={d.vps?.level || 'unknown'} />
+          </div>
+
+          <div className={`mb-4 rounded border p-2 text-sm ${d.ideas && (d.ideas.menunggu || 0) > 0 ? 'border-amber-600 bg-amber-950/30' : 'border-slate-700 bg-slate-800/50'}`}>
+            💡 Ide menunggu keputusan CEO: <b>{d.ideas ? d.ideas.menunggu || 0 : 'tak terbaca'}</b>
+            {d.ideas && <span className="text-xs text-slate-400"> · disetujui {d.ideas.disetujui || 0} · revisi {d.ideas.revisi || 0} · disimpan {d.ideas.disimpan || 0} · ditolak {d.ideas.ditolak || 0} — buka tombol &quot;Ide CEO&quot;</span>}
           </div>
 
           {q && (q.paid > 0 || q.nvidia > 0) && (

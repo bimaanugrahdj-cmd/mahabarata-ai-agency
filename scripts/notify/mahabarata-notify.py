@@ -29,6 +29,7 @@ HERMES_BIN = os.environ.get("HERMES_BIN", str(HOME / ".local/bin/hermes"))
 STATE = Path(os.environ.get("MAHABARATA_NOTIFY_STATE", HOME / ".local/state/mahabarata/notify-state.json"))
 API = os.environ.get("MAHABARATA_TELEGRAM_API", "https://api.telegram.org")
 WATCH = {"done", "blocked"}
+IDEAS_DB = Path(os.environ.get("MAHABARATA_DB", HOME / "mahabarata/data/mahabarata.db"))
 MAX_FILE = 45 * 1024 * 1024
 
 
@@ -116,6 +117,32 @@ def message_for(task, detail):
     return text
 
 
+def new_ideas(after_id):
+    """Ide 'menunggu' dengan id > after_id. DB belum ada = belum ada ide (bukan galat)."""
+    if not IDEAS_DB.exists():
+        return [], after_id
+    import sqlite3
+    con = sqlite3.connect(f"file:{IDEAS_DB}?mode=ro", uri=True)
+    try:
+        rows = con.execute("SELECT id, title, score, product, platform FROM ideas WHERE status='menunggu' AND id>? ORDER BY id",
+                           (after_id,)).fetchall()
+        top = con.execute("SELECT COALESCE(MAX(id),0) FROM ideas").fetchone()[0]
+    except sqlite3.Error:
+        return [], after_id
+    finally:
+        con.close()
+    return rows, max(after_id, top)
+
+
+def idea_message(rows):
+    lines = [f"💡 CEO, ada {len(rows)} ide konten baru yang lolos penyaringan dan menunggu keputusan Anda:"]
+    for i, t, sc, prod, plat in sorted(rows, key=lambda r: -(r[2] or 0))[:8]:
+        lines.append(f"• #{i} · skor {sc}/100 · {t[:70]} ({prod or '-'} · {plat or '-'})")
+    lines.append("\nSkor = perkiraan AI, bukan jaminan. Setujui / tolak / minta revisi di dashboard:"
+                 " https://mahabarata.mooo.com → tombol 'Ide CEO'. Ketik /ide untuk daftar.")
+    return "\n".join(lines)
+
+
 def main():
     env = read_env(HERMES_HOME / ".env")
     token = env.get("TELEGRAM_BOT_TOKEN", "")
@@ -130,8 +157,10 @@ def main():
 
     if not STATE.exists():
         STATE.parent.mkdir(parents=True, exist_ok=True)
+        _, top = new_ideas(0)
+        current["_last_idea_id"] = top
         STATE.write_text(json.dumps(current))
-        log(f"jalan pertama: {len(current)} tugas dicatat, tidak ada pesan dikirim")
+        log(f"jalan pertama: {len(current) - 1} tugas dicatat, tidak ada pesan dikirim")
         return 0
 
     seen = json.loads(STATE.read_text() or "{}")
@@ -161,6 +190,20 @@ def main():
         seen[tid] = status
         sent += 1
         STATE.write_text(json.dumps(seen))
+    # Ide baru untuk CEO. Jalan pertama fitur ini (kunci belum ada) hanya mencatat.
+    if "_last_idea_id" not in seen:
+        _, seen["_last_idea_id"] = new_ideas(0)
+    else:
+        rows, top = new_ideas(int(seen["_last_idea_id"]))
+        if rows:
+            try:
+                tg(token, "sendMessage", {"chat_id": chat, "text": idea_message(rows), "disable_web_page_preview": True})
+                seen["_last_idea_id"] = top
+                sent += 1
+            except Exception as e:
+                log(f"gagal mengirim kabar ide baru: {e} — dicoba lagi menit berikutnya")
+        else:
+            seen["_last_idea_id"] = top
     STATE.write_text(json.dumps(seen))
     if sent:
         log(f"{sent} notifikasi terkirim")

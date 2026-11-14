@@ -25,6 +25,14 @@ RULES = f"""{BEGIN}
 2. Ringkasan kanban_complete WAJIB dalam Bahasa Indonesia, 1-3 kalimat, dan menyebut
    nama file hasilnya.
 3. Jangan mengarang testimoni, nama pelanggan, angka, atau fakta klien. Tulis [ISI OLEH PEMILIK].
+4. CEO-IN-THE-LOOP: setiap IDE KONTEN yang direkomendasikan WAJIB diajukan ke CEO Content
+   Approval Center: lihat format dengan
+   `python3 ~/mahabarata-ai-agency/scripts/ideas/mahabarata-ide.py contoh`, tulis ide (boleh
+   beberapa, sebagai list JSON) ke file, lalu jalankan
+   `python3 ~/mahabarata-ai-agency/scripts/ideas/mahabarata-ide.py kirim <file.json>`.
+   Isi skor 9 kriteria dengan JUJUR dan beri alasan. Ide yang ditolak validasi harus
+   diperbaiki lalu dikirim ulang. Kamu TIDAK BOLEH memproduksi materi final, memposting,
+   atau mengeluarkan uang untuk ide yang belum DISETUJUI CEO.
 {END}
 """
 

@@ -14,12 +14,15 @@ from pathlib import Path
 HOME = Path(os.environ.get("HOME", "/home/ubuntu"))
 CFG = Path(os.environ.get("HERMES_HOME", HOME / ".hermes")) / "config.yaml"
 SCRIPT = HOME / "mahabarata-ai-agency/scripts/telegram/mahabarata-cmd.py"
-NAMES = ["tim", "tugas", "proyek", "laporan", "vps", "kuota", "bantuan"]
+IDEA = HOME / "mahabarata-ai-agency/scripts/ideas/mahabarata-ide.py"
+COMMANDS = {n: f"python3 {SCRIPT} {n}" for n in ["tim", "tugas", "proyek", "laporan", "vps", "kuota", "bantuan"]}
+COMMANDS["ide"] = f"python3 {IDEA} daftar menunggu 8"
+NAMES = list(COMMANDS)
 BEGIN, END = "# >>> MAHABARATA quick commands >>>", "# <<< MAHABARATA quick commands <<<"
 
 block = [BEGIN, "quick_commands:"]
-for n in NAMES:
-    block += [f"  {n}:", "    type: exec", f"    command: python3 {SCRIPT} {n}"]
+for n, cmd in COMMANDS.items():
+    block += [f"  {n}:", "    type: exec", f"    command: {cmd}"]
 block.append(END)
 block_text = "\n".join(block) + "\n"
 

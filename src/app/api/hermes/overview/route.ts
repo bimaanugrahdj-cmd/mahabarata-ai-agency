@@ -4,6 +4,7 @@ import { isHidden } from '@/lib/hermes/office-membership'
 import { listClients } from '@/lib/ops/clients'
 import { readQuotaToday } from '@/lib/ops/quota'
 import { readVps } from '@/lib/ops/vps'
+import { countByStatus } from '@/lib/ops/ideas'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,12 +22,13 @@ async function part<T>(fn: () => Promise<T> | T): Promise<{ ok: true; data: T } 
 }
 
 export async function GET() {
-  const [tasksR, assigneesR, quota, vps, clientsR] = await Promise.all([
+  const [tasksR, assigneesR, quota, vps, clientsR, ideasR] = await Promise.all([
     part(() => listTasks()),
     part(() => listAssignees()),
     part(() => readQuotaToday()),
     part(() => readVps()),
     part(() => listClients()),
+    part(() => countByStatus()),
   ])
 
   const tasks = tasksR.ok ? tasksR.data : null
@@ -70,8 +72,9 @@ export async function GET() {
     tasks: tasks ? { byStatus, doneToday, attention } : null,
     clients,
     quota: quota.ok ? quota.data : null,
+    ideas: ideasR.ok ? ideasR.data : null,
     vps: vps.ok ? { level: vps.data.level, backup: vps.data.backup, services: vps.data.services } : null,
-    errors: [tasksR, assigneesR, quota, vps, clientsR, agentsR]
+    errors: [tasksR, assigneesR, quota, vps, clientsR, ideasR, agentsR]
       .filter((r): r is { ok: false; error: string } => !!r && !r.ok)
       .map((r) => r.error),
   })

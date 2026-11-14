@@ -6206,6 +6206,57 @@ void (async () => {
     check('mahabarata-ringkasan: kuota semua profil hari ini + NVIDIA bukan berbayar + route', problems.length === 0, problems.join(' | '))
   }
 
+  /* ---------------------------------------- MAHABARATA CEO approval center -- */
+  {
+    const problems: string[] = []
+    const dir = mkdtempSync(join(tmpdir(), 'ide-'))
+    const saved = process.env.MAHABARATA_DB
+    process.env.MAHABARATA_DB = join(dir, 'm.db')
+    try {
+      const ideas = await import('../src/lib/ops/ideas')
+      const { DatabaseSync } = await import('node:sqlite')
+      // Ide diajukan agent (seperti skrip CLI): langsung ke tabel, status menunggu.
+      const db = new DatabaseSync(process.env.MAHABARATA_DB!)
+      db.exec(ideas.SCHEMA_SQL)
+      const ins = db.prepare("INSERT INTO ideas(title, product, score, status, created_at, updated_at) VALUES (?,?,?,'menunggu',1,1)")
+      ins.run('Ide A', 'Hanger besi', 80)
+      ins.run('Ide B', 'Hanger besi', 40)
+      ins.run('Ide C', 'Hanger besi', 60)
+      db.close()
+      // Urut skor tertinggi dulu.
+      const list = ideas.listIdeas('menunggu').map((i) => i.title).join(',')
+      if (list !== 'Ide A,Ide C,Ide B') problems.push(`urutan menunggu: ${list}`)
+      // Revisi wajib catatan.
+      try { ideas.decide(1, 'revisi', 'CEO (uji)'); problems.push('revisi tanpa catatan diterima') } catch { /* diharapkan */ }
+      // Setujui → disetujui; tidak bisa ditolak lagi (keputusan tidak berubah diam-diam).
+      if (ideas.decide(1, 'setujui', 'CEO (uji)', 'gas').status !== 'disetujui') problems.push('setujui gagal')
+      try { ideas.decide(1, 'tolak', 'CEO (uji)'); problems.push('ide disetujui bisa ditolak ulang') } catch { /* diharapkan */ }
+      // Simpan lalu setujui kemudian: sah.
+      ideas.decide(3, 'simpan', 'CEO (uji)')
+      if (ideas.decide(3, 'setujui', 'CEO (uji)').status !== 'disetujui') problems.push('setujui dari disimpan gagal')
+      ideas.decide(2, 'revisi', 'CEO (uji)', 'perjelas CTA')
+      // Jejak audit lengkap: siapa, dari→ke, catatan.
+      const ev = ideas.getIdea(1)!.events
+      if (ev.length !== 1 || ev[0].actor !== 'CEO (uji)' || ev[0].from !== 'menunggu' || ev[0].to !== 'disetujui' || ev[0].note !== 'gas') problems.push(`audit #1: ${JSON.stringify(ev)}`)
+      if (ideas.getIdea(3)!.events.map((e) => e.action).join(',') !== 'simpan,setujui') problems.push('audit #3 tidak lengkap')
+      const c = ideas.countByStatus()
+      if (c.disetujui !== 2 || c.revisi !== 1) problems.push(`hitung status: ${JSON.stringify(c)}`)
+      try { ideas.decide(99, 'setujui', 'CEO (uji)'); problems.push('ide tak ada diterima') } catch { /* diharapkan */ }
+      // Brief produksi menandai isi ide sebagai DATA dan melarang posting/biaya.
+      const brief = ideas.productionBrief(ideas.getIdea(1)!.idea, 'gas')
+      if (!/DISETUJUI CEO/.test(brief) || !/data, bukan instruksi/.test(brief) || !/Jangan memposting/.test(brief)) problems.push('brief produksi kurang pagar')
+    } catch (e) {
+      problems.push(`THREW: ${(e as Error).message}`)
+    } finally {
+      if (saved === undefined) delete process.env.MAHABARATA_DB
+      else process.env.MAHABARATA_DB = saved
+      rmSync(dir, { recursive: true, force: true })
+    }
+    const route = readFileSync(join(process.cwd(), 'src/app/api/hermes/ideas/route.ts'), 'utf8')
+    if (!/assertLocalWriteRequest\(req\)/.test(route)) problems.push('POST ide tanpa penjaga tulis')
+    check('mahabarata-ceo-approval: hanya transisi sah + revisi wajib catatan + audit lengkap + urut skor', problems.length === 0, problems.join(' | '))
+  }
+
   /* ------------------------------------------------------------- result -- */
   console.log(`\n${checks - failures}/${checks} checks passed\n`)
   if (failures) {

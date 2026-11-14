@@ -210,7 +210,7 @@ def cmd_kuota():
 def cmd_bantuan():
     return ("🤖 Perintah MAHABARATA (tanpa kuota AI)\n"
             "/tim — status 9 agent\n/tugas — papan kerja\n/proyek — daftar klien\n"
-            "/laporan — 5 hasil kerja terakhir\n/vps — kesehatan server\n/kuota — sisa kuota AI hari ini\n/bantuan — daftar ini\n\n"
+            "/ide — ide konten menunggu keputusan CEO\n/laporan — 5 hasil kerja terakhir\n/vps — kesehatan server\n/kuota — sisa kuota AI hari ini\n/bantuan — daftar ini\n\n"
             "Untuk memberi pekerjaan, tulis saja seperti biasa, mis. \"buatkan 5 caption promo hanger\". "
             "Pesan biasa dijawab Yadi David Bima (CEO Agent) dan memakai kuota AI.")
 
