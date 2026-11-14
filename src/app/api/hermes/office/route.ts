@@ -90,9 +90,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ name: setOfficeName(String(body.name ?? '')) })
       }
       case 'saveAvatars': {
+        // MAHABARATA (bug): browser yang sedang terbuka menyimpan posisi SEMUA badan
+        // yang ada di ingatannya — termasuk kursi kosong yang baru saja diklaim agent
+        // atau dihapus di server. Tanpa saringan ini kursi itu hidup lagi. Kursi kosong
+        // (dummy) hanya boleh DIPERBARUI, tidak boleh dibuat ulang lewat jalur ini;
+        // pembuatannya hanya lewat seeding.
+        const known = new Set(listAvatars().map((a) => a.avatarId))
         const list = (Array.isArray(body.list) ? body.list : [])
           .map(cleanAvatar)
           .filter((a): a is AvatarWrite => a !== null)
+          .filter((a) => a.kind === 'agent' || known.has(a.avatarId))
         return NextResponse.json({ saved: saveAvatars(list) })
       }
       case 'claimAvatar': {

@@ -6057,6 +6057,23 @@ void (async () => {
       if (rows.get('dummy:growth:3') !== 'Mkt Staff 1') problems.push('dummy ter-spawn ikut diganti')
       if (rows.get('agent:ceo') !== 'Content Manager') problems.push('agent sungguhan ikut diganti')
       if (db.DEFAULT_OFFICE_NAME !== 'MAHABARATA VIRTUAL OFFICE') problems.push(`nama kantor bawaan: ${db.DEFAULT_OFFICE_NAME}`)
+      // Nama tampilan dari judul SOUL.md (profil tetap jadi kunci).
+      const { parseSoulDisplayName } = await import('../src/lib/hermes/soul')
+      const cases: [string, string | undefined][] = [
+        ['# Yadi David Bima — CEO Agent, MAHABARATA AI AGENCY\nisi', 'Yadi David Bima'],
+        ['# Dodi - Marketing, MAHABARATA\n', 'Dodi'],
+        ['tanpa judul sama sekali', undefined],
+        ['# ' + 'x'.repeat(60), undefined],
+      ]
+      for (const [soul, want] of cases) {
+        const got = parseSoulDisplayName(soul)
+        if (got !== want) problems.push(`displayName ${JSON.stringify(soul.slice(0, 30))} → ${got}, harus ${want}`)
+      }
+      // Browser tidak boleh menghidupkan lagi kursi kosong yang sudah diklaim/dihapus.
+      const officeRoute = readFileSync(join(process.cwd(), 'src/app/api/hermes/office/route.ts'), 'utf8')
+      if (!/a\.kind === 'agent' \|\| known\.has\(a\.avatarId\)/.test(officeRoute)) {
+        problems.push('saveAvatars tidak menyaring dummy yang tidak dikenal (kursi bisa hidup lagi)')
+      }
     } catch (e) {
       problems.push(`THREW: ${(e as Error).message}`)
     } finally {
@@ -6065,7 +6082,7 @@ void (async () => {
       delete process.env.OFFICE_DB_PATH
       for (const suffix of ['', '-wal', '-shm']) rmSync(dbPath + suffix, { force: true })
     }
-    check('mahabarata-rebrand: kursi kosong berlabel jujur + migrasi label lama aman & idempoten', problems.length === 0, problems.join(' | '))
+    check('mahabarata-rebrand: kursi kosong jujur + migrasi label lama + nama tampilan SOUL + kursi tak hidup lagi', problems.length === 0, problems.join(' | '))
   }
 
   /* ------------------------------------------------------------- result -- */

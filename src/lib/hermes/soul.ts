@@ -27,6 +27,20 @@ export function parseSoulMarker(soul: string): { role?: AgentRole; division?: Ag
   return out
 }
 
+/**
+ * MAHABARATA: nama tampilan agent dari judul SOUL.md, mis.
+ * "# Yadi David Bima — CEO Agent, MAHABARATA AI AGENCY" → "Yadi David Bima".
+ * Nama profil (`yadi`) tetap jadi kunci di mana-mana; ini hanya label yang dibaca
+ * manusia. Tanpa judul yang cocok → undefined, dan pemanggil memakai nama profil.
+ */
+export function parseSoulDisplayName(soul: string): string | undefined {
+  const m = /^#\s+(.+?)\s*$/m.exec(soul)
+  if (!m) return undefined
+  const name = m[1].split(/\s+[—–-]\s+/)[0].trim()
+  if (!name || name.length > 40) return undefined
+  return name
+}
+
 export const ROLE_LABEL: Record<AgentRole, string> = {
   ceo: 'CEO',
   orchestrator: 'Orchestrator',

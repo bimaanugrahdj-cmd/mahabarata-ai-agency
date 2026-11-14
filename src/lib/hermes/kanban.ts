@@ -16,7 +16,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import type { Agent, NewTaskInput, Task, TaskOrigin, TaskStatus, AgentDivision, AgentRole } from '@/types/hermes'
-import { parseSoulMarker, soulFor } from './soul'
+import { parseSoulDisplayName, parseSoulMarker, soulFor } from './soul'
 import { a2aEndpoint, peerBaseUrl } from './meeting-a2a'
 import { parseDomains } from './a2a'
 import { readEvidence, splitEvidenceBatch, type EvidenceInput, type EvidenceMark, type EvidenceReading } from './evidence'
@@ -1168,7 +1168,8 @@ export async function listAgents(
     const parsed = soul ? parseSoulMarker(soul) : {}
     const role = parsed.role ?? roleFor(name)
     const division = parsed.division ?? divisionFor(role)
-    return { name, soul, role, division, domains: parsed.domains ?? [] as string[] }
+    const displayName = (soul ? parseSoulDisplayName(soul) : undefined) ?? name
+    return { name, soul, role, division, displayName, domains: parsed.domains ?? [] as string[] }
   })
 
   // Meja PER DIVISI dulu, lalu meja KOSONG divisi lain (lihat `assignDesks`): yang punya
@@ -1179,7 +1180,7 @@ export async function listAgents(
     meta.map((m) => ({ name: m.name, division: m.division, role: m.role, busy: active.has(m.name) })),
   )
 
-  return meta.map(({ name, soul, role, division, domains }) => {
+  return meta.map(({ name, soul, role, division, displayName, domains }) => {
     const task = active.get(name)
     // Menunggu manusia MENGALAHKAN working/review: agent yang berhenti menunggu keputusan
     // tidak boleh tampil sedang bekerja. Kursinya tetap — dia masih memegang task itu.
@@ -1192,7 +1193,7 @@ export async function listAgents(
       : 'idle'
     return {
       name,
-      displayName: name,
+      displayName,
       role,
       division,
       soulExists: soul != null,
