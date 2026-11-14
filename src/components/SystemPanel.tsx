@@ -24,6 +24,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import FullPanel from './FullPanel'
 import { useOffice } from '@/lib/store'
+import type { Level, VpsReport } from '@/lib/ops/vps'
+
+const LEVEL_CLASS: Record<Level, string> = {
+  ok: 'text-emerald-300',
+  warn: 'text-amber-300',
+  bad: 'text-red-400',
+  unknown: 'text-slate-500',
+}
+const LEVEL_TEXT: Record<Level, string> = { ok: 'sehat', warn: 'waspada', bad: 'bermasalah', unknown: 'tak pasti' }
 
 type UsageRow = {
   model: string
@@ -126,6 +135,22 @@ export default function SystemPanel({ open, onClose }: { open: boolean; onClose:
   const [needsGatewayRestart, setNeedsGatewayRestart] = useState<boolean | null>(null)
   const work = useOffice((st) => st.work)
 
+  // MAHABARATA: kesehatan VPS (CPU, RAM, disk, layanan, backup). null = belum/tak terbaca.
+  const [vps, setVps] = useState<VpsReport | null>(null)
+  const [vpsErr, setVpsErr] = useState<string | null>(null)
+  const loadVps = useCallback(async () => {
+    try {
+      const res = await fetch('/api/hermes/vps', { cache: 'no-store' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error?.message || 'gagal membaca VPS')
+      setVps(json)
+      setVpsErr(null)
+    } catch (e) {
+      setVps(null)
+      setVpsErr((e as Error).message)
+    }
+  }, [])
+
   const load = useCallback(async () => {
     setBusy(true)
     try {
@@ -179,13 +204,15 @@ export default function SystemPanel({ open, onClose }: { open: boolean; onClose:
     load()
     loadApprovals()
     loadRestart()
+    loadVps()
     const t = setInterval(() => {
       load()
       loadApprovals()
       loadRestart()
+      loadVps()
     }, 30_000)
     return () => clearInterval(t)
-  }, [open, load, loadApprovals, loadRestart])
+  }, [open, load, loadApprovals, loadRestart, loadVps])
 
   if (!open) return null
 
@@ -219,6 +246,7 @@ export default function SystemPanel({ open, onClose }: { open: boolean; onClose:
               load()
               loadApprovals()
               loadRestart()
+              loadVps()
             }}
             disabled={busy} className="rounded border border-slate-600 px-2 py-1 hover:bg-slate-800">
             {busy ? '...' : 'muat ulang'}
@@ -238,6 +266,56 @@ export default function SystemPanel({ open, onClose }: { open: boolean; onClose:
       )}
 
       {notice && <div className="mb-4 rounded border border-slate-600 bg-slate-800/60 p-2 text-xs">{notice}</div>}
+
+      {/* ---------- VPS (MAHABARATA) ---------- */}
+      {/* Angka yang tak terbaca ditulis "tak terbaca", bukan 0. Warna mengikuti yang terburuk. */}
+      <section className="mb-5">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          VPS &amp; layanan {vps && <span className={LEVEL_CLASS[vps.level]}>· {LEVEL_TEXT[vps.level]}</span>}
+        </h3>
+        {vpsErr && <div className="rounded border border-red-800 bg-red-950/50 p-2 text-xs">VPS tak terbaca: {vpsErr}</div>}
+        {vps && (
+          <div className="grid gap-1 rounded border border-slate-700 bg-slate-800/50 p-2 text-xs sm:grid-cols-2">
+            <div>
+              CPU: <span className={LEVEL_CLASS[vps.cpu.level]}>beban {vps.cpu.load1} ({vps.cpu.cores} inti)</span>
+            </div>
+            <div>
+              RAM:{' '}
+              <span className={LEVEL_CLASS[vps.memory.level]}>
+                {vps.memory.availableMb !== null && vps.memory.totalMb !== null
+                  ? `sisa ${vps.memory.availableMb} / ${vps.memory.totalMb} MB`
+                  : 'tak terbaca'}
+              </span>
+              {vps.memory.swapUsedMb ? <span className="text-slate-400"> · swap {vps.memory.swapUsedMb} MB</span> : null}
+            </div>
+            <div>
+              Disk:{' '}
+              <span className={LEVEL_CLASS[vps.disk.level]}>
+                {vps.disk.availableGb !== null && vps.disk.totalGb !== null
+                  ? `sisa ${vps.disk.availableGb} / ${vps.disk.totalGb} GB`
+                  : 'tak terbaca'}
+              </span>
+            </div>
+            <div>
+              Backup:{' '}
+              <span className={LEVEL_CLASS[vps.backup.level]}>
+                {vps.backup.latest
+                  ? `${vps.backup.ageHours} jam lalu · ${vps.backup.sizeMb} MB · ${vps.backup.count} arsip`
+                  : 'BELUM ADA backup'}
+              </span>
+            </div>
+            <div className="sm:col-span-2">
+              Layanan:{' '}
+              {vps.services.map((sv) => (
+                <span key={sv.name} className={`mr-2 ${LEVEL_CLASS[sv.level]}`}>
+                  {sv.name} {sv.state === 'active' ? '✓' : `(${sv.state})`}
+                </span>
+              ))}
+            </div>
+            <div className="text-slate-500 sm:col-span-2">VPS menyala {vps.uptimeHours} jam</div>
+          </div>
+        )}
+      </section>
 
       {/* ---------- gateway ---------- */}
       {/* "Butuh restart" dari SATU sumber kebenaran (bukan hitungan panel ini).

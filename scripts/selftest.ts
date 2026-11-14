@@ -6085,6 +6085,39 @@ void (async () => {
     check('mahabarata-rebrand: kursi kosong jujur + migrasi label lama + nama tampilan SOUL + kursi tak hidup lagi', problems.length === 0, problems.join(' | '))
   }
 
+  /* --------------------------------------------- MAHABARATA kesehatan VPS -- */
+  {
+    const problems: string[] = []
+    const v = await import('../src/lib/ops/vps')
+    // Ambang tersisa: <10% bahaya, <20% waspada, tak terbaca = unknown (BUKAN ok).
+    const lf: [number | null, string][] = [[0.05, 'bad'], [0.15, 'warn'], [0.5, 'ok'], [null, 'unknown']]
+    for (const [f, want] of lf) if (v.levelForFree(f) !== want) problems.push(`levelForFree(${f}) != ${want}`)
+    if (v.levelForLoad(4, 2) !== 'warn' || v.levelForLoad(7, 2) !== 'bad' || v.levelForLoad(1, 2) !== 'ok') problems.push('levelForLoad salah')
+    if (v.levelForBackup(null) !== 'bad' || v.levelForBackup(40) !== 'warn' || v.levelForBackup(5) !== 'ok') problems.push('levelForBackup salah')
+    if (v.worst(['ok', 'unknown', 'warn']) !== 'warn' || v.worst(['unknown', 'unknown']) !== 'unknown' || v.worst(['ok', 'bad']) !== 'bad') problems.push('worst salah')
+    const mi = v.parseMeminfo('MemTotal:        4000000 kB\nMemAvailable:    1000000 kB\nSwapTotal: 0 kB\n')
+    if (mi.MemTotal !== 4000000 || mi.MemAvailable !== 1000000 || mi.SwapTotal !== 0) problems.push(`parseMeminfo: ${JSON.stringify(mi)}`)
+    // Backup terbaru dipilih menurut waktu, file lain diabaikan, folder hilang = bahaya (bukan sehat).
+    const dir = mkdtempSync(join(tmpdir(), 'vps-backup-'))
+    try {
+      const { utimesSync } = await import('node:fs')
+      writeFileSync(join(dir, 'mahabarata-lama.tar.gz'), 'x')
+      writeFileSync(join(dir, 'mahabarata-baru.tar.gz'), 'xx')
+      writeFileSync(join(dir, 'backup.log'), 'bukan arsip')
+      const now = Date.now()
+      utimesSync(join(dir, 'mahabarata-lama.tar.gz'), (now - 50 * 3_600_000) / 1000, (now - 50 * 3_600_000) / 1000)
+      utimesSync(join(dir, 'mahabarata-baru.tar.gz'), (now - 2 * 3_600_000) / 1000, (now - 2 * 3_600_000) / 1000)
+      const b = v.latestBackup(dir, now)
+      if (b.latest !== 'mahabarata-baru.tar.gz' || b.count !== 2 || b.level !== 'ok') problems.push(`latestBackup: ${JSON.stringify(b)}`)
+      const missing = v.latestBackup(join(dir, 'tidak-ada'), now)
+      if (missing.level !== 'bad' || missing.latest !== null) problems.push('folder backup hilang tidak dianggap bahaya')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+    if (!existsSync(join(process.cwd(), 'src/app/api/hermes/vps/route.ts'))) problems.push('route /api/hermes/vps hilang')
+    check('mahabarata-vps: ambang jujur (tak terbaca bukan sehat) + backup terbaru + route', problems.length === 0, problems.join(' | '))
+  }
+
   /* ------------------------------------------------------------- result -- */
   console.log(`\n${checks - failures}/${checks} checks passed\n`)
   if (failures) {
