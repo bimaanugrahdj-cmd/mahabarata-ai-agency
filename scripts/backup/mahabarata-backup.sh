@@ -9,8 +9,9 @@
 #   ~/mahabarata-ai-agency/.env.local
 #   /etc/nginx/sites-available/mahabarata (kalau terbaca)
 #
-# Yang TIDAK dicadangkan: kode Hermes (~/.hermes/hermes-agent, bisa dipasang ulang),
-# log, workspace sementara kanban, node_modules. Kode kantor ada di GitHub.
+# Yang TIDAK dicadangkan: kode & runtime Hermes (~/.hermes/hermes-agent, tools,
+# installs, cache — semuanya bisa dipasang ulang, ukurannya GB), log, workspace
+# sementara kanban, node_modules. Kode kantor ada di GitHub.
 #
 # Database SQLite disalin dengan API backup SQLite (aman walau sedang dipakai),
 # bukan disalin mentah — salinan mentah file yang sedang ditulis bisa rusak.
@@ -24,9 +25,12 @@ H="${HOME:-/home/ubuntu}"
 DEST="${MAHABARATA_BACKUP_DIR:-$H/backups}"
 KEEP="${MAHABARATA_BACKUP_KEEP:-7}"
 TS="$(date +%Y-%m-%d_%H%M)"
-STAGE="$(mktemp -d)"
-trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$DEST"
+# Disusun di disk (di dalam folder backup), BUKAN di /tmp: di Ubuntu baru /tmp ada di
+# RAM dengan kuota per pengguna, dan backup gagal "Disk quota exceeded".
+rm -rf "$DEST"/.staging-*
+STAGE="$(mktemp -d -p "$DEST" .staging-XXXXXX)"
+trap 'rm -rf "$STAGE"' EXIT
 
 # Salin satu folder ke staging, tanpa kode/log/cache. Dikerjakan Python, bukan tar:
 # gateway Hermes terus menulis di ~/.hermes, dan tar menganggap "file berubah saat
@@ -39,16 +43,19 @@ copy_tree() {
   python3 - "$src" "$STAGE/$name" <<'PY'
 import os, shutil, sqlite3, stat, sys
 src, dst = sys.argv[1], sys.argv[2]
-SKIP_DIRS = {"hermes-agent", "node_modules", "logs", "workspaces", "__pycache__", "cache", ".git"}
+# Di puncak ~/.hermes: kode & runtime yang bisa dipasang ulang (ukurannya GB).
+TOP_SKIP = {"hermes-agent", "tools", "installs", "cache", "logs", "backups"}
+# Di kedalaman mana pun: folder yang tidak pernah berisi data kerja.
+SKIP_DIRS = {"node_modules", "logs", "workspaces", "__pycache__", "cache", ".git"}
 SKIP_SUFFIX = ("-wal", "-shm", "-journal")
 files = dbs = 0
 warn = []
 for root, dirs, names in os.walk(src):
-    dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+    dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not (root == src and d in TOP_SKIP)]
     for f in names:
         s = os.path.join(root, f)
         d = os.path.join(dst, os.path.relpath(s, src))
-        if f.endswith(SKIP_SUFFIX):
+        if f.endswith(SKIP_SUFFIX) or f.endswith("_cache.json"):
             continue
         try:
             st = os.lstat(s)
