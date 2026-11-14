@@ -157,15 +157,60 @@ def cmd_vps():
     return "\n".join(lines)
 
 
+def cmd_kuota():
+    """Perkiraan pemakaian kuota hari ini, dari catatan sesi Hermes SEMUA profil."""
+    import sqlite3
+    import time
+    # Batas harian OpenRouter dihitung per hari UTC (00.00 UTC = 07.00 WIB).
+    now = time.time()
+    day_start = now - (now % 86400)
+    dbs = [HH / "state.db"] + sorted((HH / "profiles").glob("*/state.db"))
+    free = paid = 0
+    paid_models = set()
+    unread = 0
+    for db in dbs:
+        if not db.exists():
+            continue
+        try:
+            con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+            rows = con.execute(
+                "SELECT model, COALESCE(SUM(api_call_count),0) FROM session_model_usage "
+                "WHERE COALESCE(last_seen,0) >= ? GROUP BY model", (day_start,)
+            ).fetchall()
+            con.close()
+        except sqlite3.Error:
+            unread += 1
+            continue
+        for model, calls in rows:
+            if (model or "").endswith(":free"):
+                free += calls
+            else:
+                paid += calls
+                if calls:
+                    paid_models.add(model)
+    reset_in = (day_start + 86400 - now) / 3600
+    lines = [f"🔋 Kuota AI hari ini (perkiraan)",
+             f"Model gratis: {free} dari 50 request",
+             f"Sisa ±{max(0, 50 - free)} · reset dalam {reset_in:.0f} jam (07.00 WIB)"]
+    if free >= 45:
+        lines.append("⚠️ Hampir habis: tugas baru bisa tertahan sampai reset.")
+    if paid:
+        lines.append(f"❗ {paid} request ke model BERBAYAR: {', '.join(sorted(paid_models))[:200]}")
+    if unread:
+        lines.append(f"({unread} catatan sesi tak terbaca — angka bisa kurang)")
+    lines.append("Angka ini perkiraan dari catatan Hermes; penghitung resmi ada di OpenRouter.")
+    return "\n".join(lines)
+
+
 def cmd_bantuan():
     return ("🤖 Perintah MAHABARATA (tanpa kuota AI)\n"
             "/tim — status 9 agent\n/tugas — papan kerja\n/proyek — daftar klien\n"
-            "/laporan — 5 hasil kerja terakhir\n/vps — kesehatan server\n/bantuan — daftar ini\n\n"
+            "/laporan — 5 hasil kerja terakhir\n/vps — kesehatan server\n/kuota — sisa kuota AI hari ini\n/bantuan — daftar ini\n\n"
             "Untuk memberi pekerjaan, tulis saja seperti biasa, mis. \"buatkan 5 caption promo hanger\". "
             "Pesan biasa dijawab Yadi David Bima (CEO Agent) dan memakai kuota AI.")
 
 
-CMDS = {"tim": cmd_tim, "tugas": cmd_tugas, "proyek": cmd_proyek, "laporan": cmd_laporan, "vps": cmd_vps, "bantuan": cmd_bantuan}
+CMDS = {"tim": cmd_tim, "tugas": cmd_tugas, "proyek": cmd_proyek, "laporan": cmd_laporan, "vps": cmd_vps, "kuota": cmd_kuota, "bantuan": cmd_bantuan}
 
 if __name__ == "__main__":
     c = sys.argv[1] if len(sys.argv) > 1 else "bantuan"

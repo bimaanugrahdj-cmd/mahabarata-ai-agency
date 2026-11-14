@@ -14,7 +14,7 @@ from pathlib import Path
 HOME = Path(os.environ.get("HOME", "/home/ubuntu"))
 CFG = Path(os.environ.get("HERMES_HOME", HOME / ".hermes")) / "config.yaml"
 SCRIPT = HOME / "mahabarata-ai-agency/scripts/telegram/mahabarata-cmd.py"
-NAMES = ["tim", "tugas", "proyek", "laporan", "vps", "bantuan"]
+NAMES = ["tim", "tugas", "proyek", "laporan", "vps", "kuota", "bantuan"]
 BEGIN, END = "# >>> MAHABARATA quick commands >>>", "# <<< MAHABARATA quick commands <<<"
 
 block = [BEGIN, "quick_commands:"]

@@ -10,6 +10,7 @@ Hermes: skrip langsung dijalankan di server, **tanpa memanggil AI dan tanpa kuot
 | /proyek | klien, jumlah tugas per klien, kelengkapan profil |
 | /laporan | 5 tugas terakhir yang selesai + ringkasan + nama file hasil |
 | /vps | CPU, RAM, disk, status layanan, umur backup |
+| /kuota | perkiraan pemakaian kuota AI hari ini (model gratis: batas 50) dan peringatan model berbayar |
 | /bantuan | daftar perintah |
 
 Nama sengaja berbahasa Indonesia: /status, /agents, /help, /start sudah dipakai Hermes.
