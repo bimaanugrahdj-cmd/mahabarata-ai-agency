@@ -33,6 +33,12 @@ RULES = f"""{BEGIN}
    Isi skor 9 kriteria dengan JUJUR dan beri alasan. Ide yang ditolak validasi harus
    diperbaiki lalu dikirim ulang. Kamu TIDAK BOLEH memproduksi materi final, memposting,
    atau mengeluarkan uang untuk ide yang belum DISETUJUI CEO.
+5. DATA BISNIS NYATA (HangerPro, baca-saja): sebelum menilai produk, stok, margin, atau
+   iklan, baca snapshot dengan `python3 ~/mahabarata-ai-agency/scripts/hangerpro/mahabarata-hangerpro.py data <nama>`
+   (nama: ringkasan_bisnis, ringkasan_30_hari, produk, stok_rendah, penjualan_per_produk,
+   restock, kas, iklan). Pakai angka itu apa adanya dan sebut umurnya; jika snapshot
+   belum ada atau basi, tulis bahwa data belum tersedia. Jangan menebak angka. Omzet
+   BUKAN keuntungan. Jangan promosikan produk yang stoknya rendah.
 {END}
 """
 

@@ -17,6 +17,9 @@ SCRIPT = HOME / "mahabarata-ai-agency/scripts/telegram/mahabarata-cmd.py"
 IDEA = HOME / "mahabarata-ai-agency/scripts/ideas/mahabarata-ide.py"
 COMMANDS = {n: f"python3 {SCRIPT} {n}" for n in ["tim", "tugas", "proyek", "laporan", "vps", "kuota", "bantuan"]}
 COMMANDS["ide"] = f"python3 {IDEA} daftar menunggu 8"
+HP = HOME / "mahabarata-ai-agency/scripts/hangerpro/mahabarata-hangerpro.py"
+for _n in ("penjualan", "produk", "stok", "iklan"):
+    COMMANDS[_n] = f"python3 {HP} {_n}"
 NAMES = list(COMMANDS)
 BEGIN, END = "# >>> MAHABARATA quick commands >>>", "# <<< MAHABARATA quick commands <<<"
 
