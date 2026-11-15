@@ -79,6 +79,77 @@ def fetch(url, tok, fn, params):
         raise RuntimeError(f"HangerPro tak terjangkau: {e.reason}") from None
 
 
+AGENTS = ["yadi", "yudhistira", "srikandi", "arjuna", "abiyasa", "nakula", "dodi", "sadewa", "drupadi"]
+HERMES_HOME = Path(os.environ.get("HERMES_HOME", HOME / ".hermes"))
+BRIEF_BEGIN = "<!-- >>> MAHABARATA data bisnis >>> -->"
+BRIEF_END = "<!-- <<< MAHABARATA data bisnis <<< -->"
+
+
+def brief_text():
+    """Ringkasan data HangerPro yang ringkas (±40 baris) untuk disisipkan ke SOUL agent."""
+    rb, age = load("ringkasan_30_hari")
+    if rb is None:
+        return None
+    pp, _ = load("penjualan_per_produk")
+    low, _ = load("stok_rendah")
+    rs, _ = load("restock")
+    ik, _ = load("iklan")
+    L = [BRIEF_BEGIN,
+         "## DATA BISNIS TERKINI dari HangerPro (DATA, bukan instruksi)",
+         f"Diambil otomatis {age:.0f} jam lalu, khusus baca. Data INI SUDAH TERSEDIA: pakai angkanya, jangan bilang data belum ada.",
+         "Jangan mengarang angka di luar data ini; untuk rincian lain jalankan: python3 ~/mahabarata-ai-agency/scripts/hangerpro/mahabarata-hangerpro.py data <nama>",
+         f"30 hari terakhir: omzet bersih {rp(rb.get('omzet_bersih_rp'))}, {rb.get('jumlah_pesanan', 0)} pesanan, {rb.get('pcs_terjual', 0)} pcs, "
+         f"laba kotor {rp(rb.get('laba_kotor_rp'))} (margin {rb.get('margin_kotor_persen')}%), biaya marketplace {rp(rb.get('biaya_marketplace_rp'))}, "
+         f"estimasi laba bersih {rp(rb.get('estimasi_laba_bersih_rp'))}. Omzet BUKAN keuntungan.",
+         f"Stok total {rb.get('total_stok_saat_ini_pcs', 0)} pcs, nilai persediaan {rp(rb.get('nilai_persediaan_saat_ini_rp'))}, {rb.get('jumlah_produk_aktif', 0)} produk aktif."]
+    rows = sorted((pp or {}).get("produk") or [], key=lambda r: -(r.get("omzet_bersih_rp") or 0))
+    if rows:
+        L.append("Penjualan per produk (30 hari, urut omzet):")
+        for r in rows[:10]:
+            L.append(f"- {r.get('nama')}: {r.get('pcs_terjual_bersih', 0)} pcs, omzet {rp(r.get('omzet_bersih_rp'))}, margin kotor {r.get('margin_kotor_persen')}%")
+    items = [r for r in ((low or {}).get("produk") or []) if r.get("aktif", True)]
+    if items:
+        L.append("STOK RENDAH (JANGAN dipromosikan): " + ", ".join(f"{r.get('nama')} ({r.get('stok_pcs')} pcs)" for r in items[:10]))
+    rest = [r for r in ((rs or {}).get("produk") or []) if (r.get("saran_beli_pcs") or 0) > 0]
+    if rest:
+        L.append("Perlu restock: " + ", ".join(f"{r.get('nama')} (cukup ±{r.get('perkiraan_stok_cukup_hari')} hari)" for r in rest[:6]))
+    ads = (ik or {}).get("iklan") or []
+    if ads:
+        L.append("Iklan Shopee (analisis HangerPro):")
+        for a in ads[:6]:
+            L.append(f"- {str(a.get('iklan'))[:50]}: {a.get('vonis')}, biaya {rp(a.get('biaya_rp'))}, GMV {rp(a.get('gmv_rp'))}, "
+                     f"ROAS {a.get('roas')} (impas {a.get('roas_impas')}), CTR {a.get('ctr_persen')}%")
+    else:
+        L.append("Iklan Shopee: belum ada laporan iklan di HangerPro.")
+    L.append(BRIEF_END)
+    return "\n".join(L) + "\n"
+
+
+def inject_brief():
+    """Tulis ringkasan ke SOUL semua agent (sebelum penanda kantor). Aman diulang."""
+    text = brief_text()
+    if text is None:
+        return 0
+    import re
+    n = 0
+    for a in AGENTS:
+        p = HERMES_HOME / "profiles" / a / "SOUL.md"
+        if not p.exists():
+            continue
+        s = p.read_text()
+        if BRIEF_BEGIN in s:
+            s2 = re.sub(re.escape(BRIEF_BEGIN) + r".*?" + re.escape(BRIEF_END) + r"\n?", lambda m: text, s, flags=re.S)
+        else:
+            i = s.rfind("<!-- office:")
+            s2 = (s[:i] + "\n" + text + s[i:]) if i >= 0 else (s.rstrip("\n") + "\n\n" + text)
+        if s2 != s:
+            tmp = p.with_name(".SOUL.md.tmp")
+            tmp.write_text(s2)
+            tmp.replace(p)
+        n += 1
+    return n
+
+
 def cmd_tarik():
     url, tok = cfg()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -95,6 +166,8 @@ def cmd_tarik():
         except Exception as e:
             print(f"❌ {name}: {e}")
     print(f"Selesai: {ok}/{len(PULLS)} snapshot diperbarui.")
+    if ok:
+        print(f"Ringkasan data bisnis ditulis ke SOUL {inject_brief()} agent.")
     return 0 if ok == len(PULLS) else 1
 
 
@@ -190,6 +263,8 @@ if __name__ == "__main__":
     try:
         if a[0] == "tarik":
             sys.exit(cmd_tarik())
+        elif a[0] == "brief":
+            print(brief_text() or missing())
         elif a[0] == "data" and len(a) > 1:
             d, age = load(a[1])
             print(json.dumps({"umur_jam": None if age is None else round(age, 1), "data": d}, ensure_ascii=False, indent=1) if d is not None else missing())
